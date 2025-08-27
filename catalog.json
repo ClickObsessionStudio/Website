@@ -1,1 +1,11 @@
-[]
+[
+  {
+    "slug": "sprout-sprint",
+    "title": "Sprout Sprint",
+    "summary": "Dash as a tiny sprout in an endless runner where the ground keeps rolling and rocks keep coming. Tap or press Space to jump (double-jump allowed) and survive as speed ramps up. High contrast, keyboard-friendly, and respects reduced motion, with your best score saved locally.",
+    "added_at": "2025-08-27T14:04:32.922204Z",
+    "thumbnail": "games/sprout-sprint/thumb.svg",
+    "path": "games/sprout-sprint/",
+    "play_count": 0
+  }
+]
