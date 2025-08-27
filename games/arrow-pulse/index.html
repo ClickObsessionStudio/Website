@@ -1,0 +1,574 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>Arrow Pulse</title>
+<style>
+  :root{
+    --bg:#0b0b0f;
+    --fg:#ffffff;
+    --dim:#8aa0b3;
+    --accent:#29f27a;
+    --accent2:#3aa0ff;
+    --bad:#ff4d4d;
+    --good:#ffd34d;
+    --focus:#fffb91;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0;background:var(--bg);color:var(--fg);font-family:system-ui, -apple-system, Segoe UI, Roboto, sans-serif}
+  button,select{font:inherit}
+  .wrap{display:flex;flex-direction:column;min-height:100dvh}
+  header{padding:.75rem .75rem .25rem;display:flex;flex-wrap:wrap;gap:.5rem;align-items:center;justify-content:space-between}
+  .title{font-weight:700;letter-spacing:.5px}
+  .controls{display:flex;flex-wrap:wrap;gap:.5rem;align-items:center}
+  .controls > *{flex:0 0 auto}
+  button,.pill{background:#12131a;color:var(--fg);border:2px solid #2b2f40;border-radius:.6rem;padding:.6rem .8rem;min-width:2.75rem;min-height:2.75rem}
+  button:hover{border-color:var(--accent2)}
+  button:active{transform:translateY(1px)}
+  button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  select{background:#12131a;color:var(--fg);border:2px solid #2b2f40;border-radius:.6rem;padding:.5rem}
+  select:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+  .stats{display:flex;gap:1rem;align-items:center;color:var(--dim);font-weight:600}
+  .stats b{color:var(--fg)}
+  .game{flex:1;display:flex;flex-direction:column;gap:.5rem;padding:.5rem}
+  .arena{position:relative;flex:1;border:2px solid #2b2f40;border-radius:.75rem;overflow:hidden;background:linear-gradient(180deg,#0b0b10 0%, #0b0b0f 100%)}
+  .lanes{position:absolute;inset:0;display:grid;grid-template-columns:repeat(4,1fr);gap:.25rem;padding:.25rem}
+  .lane{position:relative;background:#12131a;border:1px solid #1d2131;border-radius:.5rem;overflow:hidden}
+  .lane.active{box-shadow:0 0 0 2px var(--accent) inset}
+  .hitline{position:absolute;left:.25rem;right:.25rem;bottom:20%;height:2px;background:linear-gradient(90deg,transparent, var(--accent2), transparent)}
+  .note{position:absolute;left:6%;right:6%;height:12%;min-height:34px;max-height:70px;display:flex;align-items:center;justify-content:center;border:2px solid #3a3f57;border-radius:.4rem;color:var(--fg);background:#1a1f2b;box-shadow:0 2px 0 #0006}
+  .note .glyph{font-size:1.4rem;line-height:1}
+  .note.perfect{border-color:var(--accent)}
+  .note.good{border-color:var(--good)}
+  .flash{position:absolute;left:8%;right:8%;bottom:20%;height:16%;min-height:36px;max-height:78px;border:2px solid #3a3f57;border-radius:.5rem;display:flex;align-items:center;justify-content:center;background:#1a1f2b}
+  .flash.show{border-color:var(--accent2)}
+  @media (prefers-reduced-motion:no-preference){
+    .judgement{transition:opacity .25s ease, transform .25s ease}
+  }
+  .judgement{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(1);background:#12131a;border:2px solid #2b2f40;border-radius:.5rem;padding:.3rem .5rem;font-weight:800;opacity:0;pointer-events:none}
+  .judgement.show{opacity:1;transform:translate(-50%,-50%) scale(1.05)}
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:.5rem;margin-top:.25rem}
+  .pad button{padding:1.1rem 0;font-weight:800}
+  .pad .sp{visibility:hidden}
+  .pad .left{grid-column:1}
+  .pad .down{grid-column:2}
+  .pad .right{grid-column:3}
+  .pad .up{grid-column:2;grid-row:1}
+  .legend{display:flex;gap:.75rem;flex-wrap:wrap;color:var(--dim);font-size:.95rem}
+  details{border:1px dashed #2b2f40;border-radius:.6rem;padding:.5rem}
+  details summary{cursor:pointer}
+  .sr{position:absolute;left:-9999px;top:auto;width:1px;height:1px;overflow:hidden}
+  .overlay{position:absolute;inset:0;background:linear-gradient(180deg,#000a,#000e);display:none;align-items:center;justify-content:center;z-index:5}
+  .overlay.show{display:flex}
+  .panel{background:#101420;border:2px solid #2b2f40;border-radius:.8rem;padding:1rem;max-width:520px;width:92%}
+  .panel h2{margin:.2rem 0 0}
+  .panel .results{display:flex;flex-wrap:wrap;gap:.75rem;margin:.5rem 0;color:var(--dim)}
+  .panel .results b{color:var(--fg)}
+  .topline{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="topline">
+      <div class="title">Arrow Pulse</div>
+      <div class="stats" aria-live="polite" aria-atomic="true">
+        <div>Score: <b id="score">0</b></div>
+        <div>Combo: <b id="combo">0</b></div>
+        <div>Best: <b id="best">0</b></div>
+      </div>
+    </div>
+    <div class="controls">
+      <button id="startBtn" aria-label="Start or pause">Start</button>
+      <select id="diff" aria-label="Difficulty">
+        <option value="easy">Easy</option>
+        <option value="normal" selected>Normal</option>
+        <option value="hard">Hard</option>
+      </select>
+      <button id="soundBtn" aria-pressed="false" aria-label="Toggle sound">Sound: Off</button>
+      <button id="motionBtn" aria-pressed="false" aria-label="Toggle reduced motion">Motion: Full</button>
+      <button id="resetBtn" aria-label="Reset saved data">Reset</button>
+    </div>
+  </header>
+  <div class="game">
+    <div class="arena" id="arena" role="application" aria-label="Rhythm lanes">
+      <div class="lanes" id="lanes" aria-hidden="false">
+        <div class="lane" data-lane="0" aria-label="Left lane"></div>
+        <div class="lane" data-lane="1" aria-label="Down lane"></div>
+        <div class="lane" data-lane="2" aria-label="Up lane"></div>
+        <div class="lane" data-lane="3" aria-label="Right lane"></div>
+      </div>
+      <div class="hitline" aria-hidden="true"></div>
+      <div class="judgement" id="judge" role="status" aria-live="polite"></div>
+      <div class="overlay" id="overlay" aria-modal="true" role="dialog">
+        <div class="panel">
+          <h2 id="resultTitle">Results</h2>
+          <div class="results">
+            <div>Score: <b id="rScore">0</b></div>
+            <div>Accuracy: <b id="rAcc">0%</b></div>
+            <div>Max Combo: <b id="rCombo">0</b></div>
+            <div>Perfect: <b id="rPerf">0</b></div>
+            <div>Good: <b id="rGood">0</b></div>
+            <div>Miss: <b id="rMiss">0</b></div>
+          </div>
+          <div style="display:flex;gap:.5rem;flex-wrap:wrap;justify-content:flex-end">
+            <button id="againBtn">Play Again</button>
+            <button id="closeBtn">Close</button>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="legend">
+      <details>
+        <summary>Help / About</summary>
+        <p>Hit arrows as they reach the glowing line. Use Arrow keys or WASD on keyboard, or tap the on-screen arrows. Scoring windows: Perfect (tight), Good (looser), Miss.</p>
+        <ul>
+          <li>Start pauses/continues the song. Difficulty changes the density and speed of notes.</li>
+          <li>Sound toggles simple beeps; Motion toggles reduced-motion mode (flashes instead of scrolling arrows).</li>
+          <li>Best score is saved locally. Use Reset to clear saved data.</li>
+          <li>Accessibility: large tap targets, visible focus, high contrast, respects prefers-reduced-motion.</li>
+        </ul>
+        <p>Made to run offline in any modern browser.</p>
+      </details>
+    </div>
+    <div class="pad" aria-label="On-screen controls">
+      <span class="sp"></span>
+      <button class="up" data-hit="2" aria-label="Up (W or ↑)">↑</button>
+      <button class="left" data-hit="0" aria-label="Left (A or ←)">←</button>
+      <button class="down" data-hit="1" aria-label="Down (S or ↓)">↓</button>
+      <button class="right" data-hit="3" aria-label="Right (D or →)">→</button>
+    </div>
+  </div>
+  <div class="sr" aria-live="polite" id="srLive"></div>
+</div>
+<script>
+(function(){
+  'use strict';
+  const $ = sel => document.querySelector(sel);
+  const lanesEl = $('#lanes');
+  const arena = $('#arena');
+  const judge = $('#judge');
+  const overlay = $('#overlay');
+  const btnStart = $('#startBtn');
+  const btnSound = $('#soundBtn');
+  const btnMotion = $('#motionBtn');
+  const btnReset = $('#resetBtn');
+  const diffSel = $('#diff');
+  const srLive = $('#srLive');
+  const scoreEl = $('#score');
+  const comboEl = $('#combo');
+  const bestEl = $('#best');
+  const rScore = $('#rScore');
+  const rAcc = $('#rAcc');
+  const rCombo = $('#rCombo');
+  const rPerf = $('#rPerf');
+  const rGood = $('#rGood');
+  const rMiss = $('#rMiss');
+  const againBtn = $('#againBtn');
+  const closeBtn = $('#closeBtn');
+
+  const STORE_KEY = 'arrowpulse_v1';
+  function loadStore(){
+    try{ return JSON.parse(localStorage.getItem(STORE_KEY)||'{}'); }catch(e){ return {}; }
+  }
+  function saveStore(obj){
+    try{ localStorage.setItem(STORE_KEY, JSON.stringify(obj)); }catch(e){}
+  }
+  const store = loadStore();
+
+  const prefersReduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let settings = {
+    difficulty: store.difficulty || 'normal',
+    sound: !!store.sound,
+    reduce: ('reduce' in store) ? !!store.reduce : prefersReduce
+  };
+  diffSel.value = settings.difficulty;
+  updateSoundBtn();
+  updateMotionBtn();
+
+  let best = store.best || {easy:0, normal:0, hard:0};
+  bestEl.textContent = best[settings.difficulty]||0;
+
+  // Audio
+  let AC = window.AudioContext || window.webkitAudioContext;
+  let ctx = null;
+  function ensureAudio(){ if(!ctx){ try{ ctx = new AC(); }catch(e){ ctx = null; } } }
+  function now(){ return ctx ? ctx.currentTime : performance.now()/1000; }
+  function beep(t, hz, dur, gain){
+    if(!settings.sound || !ctx) return;
+    try{
+      const o = ctx.createOscillator();
+      const g = ctx.createGain();
+      o.type = 'sine';
+      o.frequency.value = hz;
+      g.gain.value = gain || 0.03;
+      o.connect(g); g.connect(ctx.destination);
+      const startT = Math.max(now(), t||now());
+      o.start(startT);
+      o.stop(startT + (dur||0.06));
+      g.gain.setValueAtTime(g.gain.value, startT);
+      g.gain.exponentialRampToValueAtTime(0.0001, startT + (dur||0.06));
+    }catch(e){}
+  }
+
+  // Game state
+  const LANE_GLYPHS = ['\u2190','\u2193','\u2191','\u2192'];
+  const HIT_WINDOWS = {perfect:0.06, good:0.12};
+  let travelTime = 2.0; // seconds for notes to travel to hit line
+
+  let state = resetState();
+  function resetState(){
+    return {
+      started:false,
+      paused:false,
+      startTime:0,
+      songLen:55,
+      bpm:120,
+      beatDur:0.5,
+      lastBeatIndex:-1,
+      notes:[], // {time,lane,el?,hit?,missed?}
+      nextSpawn:0,
+      score:0,
+      combo:0,
+      maxCombo:0,
+      perfect:0,
+      good:0,
+      miss:0,
+      accuracySum:0,
+      total:0,
+      hitlineY:0,
+      reduce: settings.reduce,
+      diff: settings.difficulty
+    };
+  }
+
+  function applyDifficulty(diff){
+    const cfg = {
+      easy:{bpm:100, dur:50, quarter:0.6, eighth:0.3, sixteenth:0.08},
+      normal:{bpm:120, dur:55, quarter:0.7, eighth:0.45, sixteenth:0.16},
+      hard:{bpm:140, dur:60, quarter:0.76, eighth:0.58, sixteenth:0.25}
+    }[diff];
+    state.bpm = cfg.bpm;
+    state.beatDur = 60/cfg.bpm;
+    state.songLen = cfg.dur;
+    travelTime = Math.max(1.6, 2.3 - (cfg.bpm-100)/80); // slightly faster for higher BPM
+    return cfg;
+  }
+
+  // Seeded RNG for deterministic charts
+  function lcg(seed){ let s = seed>>>0; return ()=>{ s = (1664525*s + 1013904223)>>>0; return (s>>>0)/4294967295; }; }
+
+  function generateChart(seconds, bpm, diff){
+    const cfg = applyDifficulty(diff);
+    const rand = lcg(diff==='easy'?1337:diff==='normal'?7331:9001);
+    const beatDur = 60/bpm;
+    const totalBeats = Math.floor(seconds/beatDur);
+    const times = new Map(); // key time->Set lanes
+    function addNote(time, lane){
+      const key = time.toFixed(3);
+      if(!times.has(key)) times.set(key, new Set());
+      const set = times.get(key);
+      if(set.size>=2) return; // cap chords
+      if(set.has(lane)) return;
+      set.add(lane);
+    }
+    for(let b=0;b<totalBeats;b++){
+      const t = b*beatDur;
+      if(rand()<cfg.quarter) addNote(t, Math.floor(rand()*4));
+      // Eighth notes
+      if(rand()<cfg.eighth) addNote(t+beatDur*0.5, Math.floor(rand()*4));
+      // 16ths
+      for(let k=1;k<4;k+=2){ // a couple positions
+        if(rand()<cfg.sixteenth) addNote(t+beatDur*(k/4), Math.floor(rand()*4));
+      }
+      // Ensure at least one note per 2 beats
+      if(b%2===1){
+        const tPrev = (b-1)*beatDur; const keyPrev = tPrev.toFixed(3);
+        const tCurr = t.toFixed(3);
+        const had = (times.get(keyPrev)?.size||0) + (times.get(tCurr)?.size||0);
+        if(had===0){ addNote(t, Math.floor(rand()*4)); }
+      }
+    }
+    // Build array
+    const arr = [];
+    times.forEach((set,key)=>{ const time = parseFloat(key); set.forEach(l=>arr.push({time:time, lane:l})); });
+    arr.sort((a,b)=>a.time-b.time);
+    return arr;
+  }
+
+  // Layout
+  function computeHitline(){
+    const rect = arena.getBoundingClientRect();
+    // hitline at bottom: 20% from bottom => y position in px from top
+    const y = rect.height * 0.80; // since bottom is 20%
+    state.hitlineY = y;
+  }
+  computeHitline();
+  window.addEventListener('resize', computeHitline);
+
+  function setBest(score){
+    best[state.diff] = Math.max(best[state.diff]||0, score|0);
+    bestEl.textContent = best[state.diff]||0;
+    store.best = best; store.difficulty = state.diff; store.sound = settings.sound; store.reduce = settings.reduce; saveStore(store);
+  }
+
+  function updateSoundBtn(){ btnSound.textContent = 'Sound: ' + (settings.sound? 'On':'Off'); btnSound.setAttribute('aria-pressed', settings.sound?'true':'false'); }
+  function updateMotionBtn(){ btnMotion.textContent = 'Motion: ' + (settings.reduce? 'Reduced':'Full'); btnMotion.setAttribute('aria-pressed', settings.reduce?'true':'false'); }
+
+  // Spawning/movement
+  function createNoteEl(n){
+    const col = lanesEl.children[n.lane];
+    const el = document.createElement('div');
+    el.className = 'note';
+    el.setAttribute('role','img');
+    el.setAttribute('aria-label', 'Note '+['Left','Down','Up','Right'][n.lane]);
+    const g = document.createElement('div');
+    g.className='glyph';
+    g.textContent = LANE_GLYPHS[n.lane];
+    el.appendChild(g);
+    col.appendChild(el);
+    n.el = el;
+    // initial position above view
+    positionNote(n, now());
+  }
+
+  function createFlashEl(n){
+    const col = lanesEl.children[n.lane];
+    const el = document.createElement('div');
+    el.className = 'flash';
+    const g = document.createElement('div'); g.className='glyph'; g.textContent=LANE_GLYPHS[n.lane];
+    el.appendChild(g);
+    col.appendChild(el);
+    n.el = el;
+  }
+
+  function positionNote(n, cur){
+    if(!n.el) return;
+    const tHit = state.startTime + n.time;
+    const dt = tHit - cur; // time until hit
+    const laneEl = lanesEl.children[n.lane];
+    const laneH = laneEl.getBoundingClientRect().height;
+    const hitY = state.hitlineY; // px from top
+    const travel = travelTime;
+    let y;
+    if(dt >= travel){ // not yet visible
+      y = -laneH*0.12; // offscreen
+    } else {
+      const p = Math.max(0, 1 - (dt/travel)); // 0 at spawn, 1 at hit
+      y = hitY * p - laneH*0.12; // adjust by note height fraction
+    }
+    n.el.style.transform = 'translateY('+y+'px)';
+  }
+
+  function showJudge(text, color){
+    judge.textContent = text;
+    judge.style.borderColor = color;
+    judge.style.color = color;
+    judge.classList.remove('show');
+    void judge.offsetWidth; // reflow
+    judge.classList.add('show');
+    srLive.textContent = text;
+    setTimeout(()=>judge.classList.remove('show'), 250);
+  }
+
+  function updateHUD(){
+    scoreEl.textContent = state.score|0;
+    comboEl.textContent = state.combo|0;
+  }
+
+  // Input handling
+  const laneActive = [false,false,false,false];
+  function setLaneActive(l, on){
+    const el = lanesEl.children[l];
+    el.classList.toggle('active', !!on);
+  }
+
+  function handleHit(lane){
+    if(!state.started || state.paused) return;
+    const t = now();
+    // find best candidate note in lane
+    let idx = -1; let bestDelta = 1e9; let signed = 0;
+    for(let i=0;i<state.notes.length;i++){
+      const n = state.notes[i];
+      if(n.lane!==lane || n.hit || n.missed) continue;
+      const target = state.startTime + n.time;
+      const d = Math.abs(t - target);
+      if(d < bestDelta){ bestDelta = d; signed = t - target; idx = i; }
+    }
+    const pW = HIT_WINDOWS.perfect, gW = HIT_WINDOWS.good;
+    if(idx>=0 && bestDelta <= gW){
+      const n = state.notes[idx];
+      n.hit = true;
+      if(n.el){ n.el.classList.add(bestDelta<=pW?'perfect':'good'); }
+      if(bestDelta<=pW){ state.score += 100; state.perfect++; showJudge('Perfect!', varGet('--accent')); beep(t, 880, 0.05, 0.035); }
+      else { state.score += 50; state.good++; showJudge('Good', varGet('--good')); beep(t, 660, 0.05, 0.03); }
+      state.combo++; state.maxCombo = Math.max(state.maxCombo, state.combo);
+      state.accuracySum += Math.max(0, (gW - bestDelta)/gW);
+      if(n.el){ // fade out
+        const el = n.el; n.el = null; setTimeout(()=>{ el.remove(); }, 60);
+      }
+      updateHUD();
+    } else {
+      // optional: light feedback without breaking combo
+      showJudge('Late/Early', varGet('--dim'));
+      beep(t, 300, 0.04, 0.015);
+    }
+    // Visual active hint
+    setLaneActive(lane, true);
+    setTimeout(()=>setLaneActive(lane,false), 80);
+  }
+
+  function varGet(name){ return getComputedStyle(document.documentElement).getPropertyValue(name).trim()||'#fff'; }
+
+  // Key controls
+  const keyMap = {
+    ArrowLeft:0, KeyA:0,
+    ArrowDown:1, KeyS:1,
+    ArrowUp:2, KeyW:2,
+    ArrowRight:3, KeyD:3
+  };
+  window.addEventListener('keydown', (e)=>{
+    const lane = keyMap[e.code]!==undefined?keyMap[e.code]: (keyMap[e.key]!==undefined?keyMap[e.key]:undefined);
+    if(lane!==undefined){ e.preventDefault(); handleHit(lane); }
+    if(e.code==='Space'){ e.preventDefault(); btnStart.click(); }
+  }, {passive:false});
+
+  // Touch buttons
+  document.querySelectorAll('[data-hit]').forEach(btn=>{
+    const lane = parseInt(btn.getAttribute('data-hit'));
+    const press = (ev)=>{ ev.preventDefault(); handleHit(lane); };
+    btn.addEventListener('pointerdown', press);
+    btn.addEventListener('click', press);
+  });
+
+  // Main loop
+  let raf = 0;
+  function loop(){
+    if(!state.started){ cancelAnimationFrame(raf); return; }
+    if(state.paused){ raf = requestAnimationFrame(loop); return; }
+    const t = now();
+    // Spawn notes
+    while(state.nextSpawn < state.notes.length){
+      const n = state.notes[state.nextSpawn];
+      const spawnTime = state.startTime + n.time - (state.reduce? 0.18 : travelTime);
+      if(t >= spawnTime){
+        if(state.reduce) createFlashEl(n); else createNoteEl(n);
+        state.nextSpawn++;
+      } else break;
+    }
+    // Move notes / flash handling
+    for(let i=0;i<state.notes.length;i++){
+      const n = state.notes[i];
+      if(n.hit || n.missed) continue;
+      const target = state.startTime + n.time;
+      const dt = t - target;
+      if(n.el){
+        if(state.reduce){
+          // Flash near hit
+          const d = Math.abs(dt);
+          if(d < 0.14) n.el.classList.add('show'); else n.el.classList.remove('show');
+          // remove after some time past
+          if(dt > HIT_WINDOWS.good + 0.12){ n.missed = true; state.miss++; showJudge('Miss', varGet('--bad')); n.el.remove(); }
+        } else {
+          positionNote(n, t);
+          if(dt > HIT_WINDOWS.good + 0.12){ n.missed = true; state.miss++; showJudge('Miss', varGet('--bad')); if(n.el){ n.el.remove(); n.el=null; } }
+        }
+      } else {
+        // not yet spawned or already removed
+        if(dt > HIT_WINDOWS.good + 0.12 && !n.hit && !n.missed){ n.missed = true; state.miss++; showJudge('Miss', varGet('--bad')); }
+      }
+    }
+
+    // Metronome beep on quarter beats
+    const beatIndex = Math.floor((t - state.startTime)/state.beatDur + 1e-6);
+    if(beatIndex!==state.lastBeatIndex && beatIndex>=0){
+      state.lastBeatIndex = beatIndex;
+      beep(state.startTime + beatIndex*state.beatDur, 440, 0.03, 0.018);
+    }
+
+    // End condition
+    if(t >= state.startTime + state.songLen + 1.5){ endSong(); return; }
+
+    raf = requestAnimationFrame(loop);
+  }
+
+  function startSong(){
+    ensureAudio();
+    if(ctx && ctx.state==='suspended') ctx.resume();
+    state = resetState();
+    state.reduce = settings.reduce; state.diff = settings.difficulty;
+    const cfg = applyDifficulty(state.diff);
+    state.notes = generateChart(state.songLen, state.bpm, state.diff);
+    state.total = state.notes.length;
+    state.started = true; state.paused = false; state.nextSpawn = 0; state.lastBeatIndex = -1;
+    // cleanup DOM
+    for(const laneEl of lanesEl.children){ while(laneEl.firstChild) laneEl.removeChild(laneEl.firstChild); }
+    judge.classList.remove('show');
+    updateHUD();
+    computeHitline();
+    // delay start a bit for readiness
+    const t0 = now();
+    const delay = 1.0;
+    state.startTime = t0 + delay;
+    if(settings.sound) { beep(t0+0.1, 660, 0.06, 0.035); beep(t0+0.5, 660, 0.06, 0.035); beep(t0+0.9, 880, 0.07, 0.045); }
+    btnStart.textContent = 'Pause';
+    raf = requestAnimationFrame(loop);
+  }
+
+  function pauseSong(){
+    state.paused = true;
+    btnStart.textContent = 'Resume';
+  }
+  function resumeSong(){
+    if(!state.started) return;
+    state.paused = false;
+    btnStart.textContent = 'Pause';
+  }
+
+  function endSong(){
+    if(!state.started) return;
+    state.started = false; state.paused=false;
+    btnStart.textContent = 'Start';
+    // Compute accuracy percentage
+    const hitCount = state.perfect + state.good;
+    const acc = state.total? Math.max(0, Math.min(100, Math.round( ( (state.perfect*1 + state.good*0.5) / state.total) * 100 ))):0;
+    rScore.textContent = state.score|0;
+    rAcc.textContent = acc + '%';
+    rCombo.textContent = state.maxCombo|0;
+    rPerf.textContent = state.perfect|0;
+    rGood.textContent = state.good|0;
+    rMiss.textContent = state.miss|0;
+    overlay.classList.add('show');
+    setBest(state.score|0);
+  }
+
+  // Buttons
+  btnStart.addEventListener('click', ()=>{
+    if(!state.started){ startSong(); }
+    else if(state.paused){ resumeSong(); }
+    else { pauseSong(); }
+  });
+  btnSound.addEventListener('click', ()=>{ settings.sound = !settings.sound; updateSoundBtn(); store.sound = settings.sound; saveStore(store); if(settings.sound){ ensureAudio(); if(ctx && ctx.state==='suspended') ctx.resume(); beep(now()+0.01, 880, 0.05, 0.04);} });
+  btnMotion.addEventListener('click', ()=>{ settings.reduce = !settings.reduce; updateMotionBtn(); store.reduce = settings.reduce; saveStore(store); });
+  btnReset.addEventListener('click', ()=>{
+    if(confirm('Reset best scores and settings?')){
+      try{ localStorage.removeItem(STORE_KEY);}catch(e){}
+      location.reload();
+    }
+  });
+  diffSel.addEventListener('change', ()=>{
+    settings.difficulty = diffSel.value; store.difficulty = settings.difficulty; saveStore(store); bestEl.textContent = best[settings.difficulty]||0; if(state.started){ // apply next run
+      showJudge('Difficulty set: '+settings.difficulty, varGet('--accent2'));
+    }
+  });
+
+  againBtn.addEventListener('click', ()=>{ overlay.classList.remove('show'); startSong(); });
+  closeBtn.addEventListener('click', ()=>{ overlay.classList.remove('show'); });
+
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden && state.started && !state.paused){ pauseSong(); } });
+})();
+</script>
+</body>
+</html>

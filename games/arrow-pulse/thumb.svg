@@ -1,0 +1,13 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1">
+      <stop offset="0" stop-color="#0b2a5a"/>
+      <stop offset="1" stop-color="#0f7ea5"/>
+    </linearGradient>
+  </defs>
+  <rect width="100%" height="100%" fill="url(#g)"/>
+  <g font-family="Arial,Helvetica,sans-serif" fill="#e8f0fa">
+    <text x="60" y="330" font-size="64" font-weight="700">Arrow Pulse</text>
+    <text x="60" y="570" font-size="28" fill="#b9cee6">Play ▶ /games/arrow-pulse/</text>
+  </g>
+</svg>
