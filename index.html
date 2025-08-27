@@ -1,0 +1,50 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>My Game Library</title>
+  <link rel="preload" href="assets/site.css" as="style" />
+  <link rel="stylesheet" href="assets/site.css" />
+</head>
+<body>
+  <header class="site-header">
+    <h1>My Game Library</h1>
+    <p class="tagline">One-prompt games, all in one place.</p>
+  </header>
+
+  <main class="container">
+    <section id="controls" class="controls">
+      <input id="search" type="search" placeholder="Search by title or summary…" aria-label="Search" />
+      <select id="sort">
+        <option value="date-desc">Newest first</option>
+        <option value="date-asc">Oldest first</option>
+        <option value="title-asc">Title A–Z</option>
+        <option value="title-desc">Title Z–A</option>
+      </select>
+    </section>
+
+    <section id="grid" class="grid" aria-live="polite"></section>
+
+    <template id="card-tpl">
+      <article class="card">
+        <a class="thumb-link" href="#">
+          <img class="thumb" alt="" />
+        </a>
+        <div class="card-body">
+          <h2 class="card-title"></h2>
+          <p class="card-summary"></p>
+          <p class="card-meta"></p>
+          <a class="play-btn" href="#">Play ▶</a>
+        </div>
+      </article>
+    </template>
+  </main>
+
+  <footer class="site-footer">
+    <p>Built with ❤️ and the OpenAI API. Hosted on GitHub Pages.</p>
+  </footer>
+
+  <script defer src="assets/site.js"></script>
+</body>
+</html>
