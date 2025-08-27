@@ -5,11 +5,13 @@ on:
     branches: [ "main" ]
   workflow_dispatch:
 
+# Needed for GitHub Pages
 permissions:
   contents: read
   pages: write
   id-token: write
 
+# Ensure only one Pages job runs at once
 concurrency:
   group: "pages"
   cancel-in-progress: true
@@ -24,8 +26,11 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # No build step needed since this is static. If you later add a bundler, insert it here.
+      - name: Setup Pages
+        uses: actions/configure-pages@v5
 
+      # If you had a build step (npm run build), run it before this.
+      # For a plain static site, just upload the repo root (".")
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
